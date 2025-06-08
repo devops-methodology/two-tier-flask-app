@@ -1,10 +1,10 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 from flask_mysqldb import MySQL
 import os
 
 app = Flask(__name__)
 
-# Configure MySQL (you can leave dummy values for now)
+# MySQL Configuration from environment or fallback
 app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST', 'localhost')
 app.config['MYSQL_USER'] = os.getenv('MYSQL_USER', 'root')
 app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD', 'password')
@@ -25,15 +25,20 @@ def index():
 
 @app.route('/submit', methods=['POST'])
 def submit():
-    message = request.form['message']
+    message = request.form.get('new_message')  # ✅ Match with HTML: name="new_message"
+
+    if not message:
+        return jsonify({'error': 'Message cannot be empty'}), 400
+
     try:
         cur = mysql.connection.cursor()
         cur.execute('INSERT INTO messages (message) VALUES (%s)', (message,))
         mysql.connection.commit()
         cur.close()
     except Exception as e:
-        return f"Error inserting into DB: {e}"
-    return 'Message submitted successfully'
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+    return jsonify({'message': message})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
